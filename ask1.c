@@ -2,16 +2,60 @@
 #include <stdlib.h>
 #include "mpi.h"
 
+void check_order(int, int, MPI_Status);
+
 int main(int argc, char **argv) {
-    int my_rank, p, size, group_size, spare;
+    int my_rank, p, size, group_size, spare, choice;
     int offset = 0;
     int *data, *group_data;
     int flag_tag = 0;
     MPI_Status status;
 
-    MPI_Init(&argc, &argv);
+    int rc = MPI_Init(&argc, &argv);
+    if(rc != 0) {
+        fprintf(stderr, "Problem in initialization of mpi!\n");
+        MPI_Abort(MPI_COMM_WORLD, rc);
+    }
+
     MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &p);
+
+    do {
+        if(my_rank == 0) {
+            fprintf(stdout, "Welcome to menu start.\n");
+            fprintf(stdout, "[1]... Give numbers.\n");
+            fprintf(stdout, "[2]... exit the menu\n");
+
+            scanf("%d", &choice);
+            for(int i = 1; i < p; i++) {
+                MPI_Send(&choice, 1, MPI_INT, i, flag_tag, MPI_COMM_WORLD);
+            } 
+            switch(choice) {
+                case 1: check_order(my_rank, p, status); break;
+                case 2: break;
+                default: fprintf(stdout, "Please give a valid option, try again.\n");
+            }
+            fprintf(stdout, "Exiting menu...\n");
+        } 
+        else {
+            MPI_Recv(&choice, 1, MPI_INT, 0, flag_tag, MPI_COMM_WORLD, &status);
+            switch(choice) {
+                case 1: check_order(my_rank, p, status); break;
+                case 2: break;
+                default: break;
+            }
+        }
+    }while(choice != 2);
+
+    MPI_Finalize();
+    return 0;
+}
+
+void check_order(int my_rank, int p, MPI_Status status) {
+    int size, group_size, spare;
+    int offset = 0;
+    int *data, *group_data;
+    int flag_tag = 0;
 
     if(my_rank == 0) {
         fprintf(stdout, "Give size of your number array\n");
@@ -108,7 +152,4 @@ int main(int argc, char **argv) {
     else {
         free(group_data);
     }
-
-    MPI_Finalize();
-    return 0;
 }
